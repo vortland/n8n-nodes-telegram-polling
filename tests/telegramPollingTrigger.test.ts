@@ -6,8 +6,10 @@ import type { ApiResponse, Update } from 'typegram';
 
 import {
 	buildGetUpdatesBody,
+	DEFAULT_TELEGRAM_BASE_URL,
 	isIgnorableTelegram409,
 	normalizeAllowedUpdates,
+	normalizeBaseUrl,
 	pollOnce,
 	runPollingLoop,
 	TelegramPollingTrigger,
@@ -454,5 +456,73 @@ test('trigger passes explicit allowed_updates when configured', async () => {
 	await closeFunction();
 
 	assert.deepEqual(sawAllowedUpdates, ['message']);
+	await new Promise((resolve) => setImmediate(resolve));
+});
+
+test('normalizeBaseUrl falls back to the official endpoint', () => {
+	assert.equal(normalizeBaseUrl(undefined), DEFAULT_TELEGRAM_BASE_URL);
+	assert.equal(normalizeBaseUrl(''), DEFAULT_TELEGRAM_BASE_URL);
+	assert.equal(normalizeBaseUrl('   '), DEFAULT_TELEGRAM_BASE_URL);
+});
+
+test('normalizeBaseUrl trims whitespace and trailing slashes', () => {
+	assert.equal(normalizeBaseUrl('https://tg.example.com'), 'https://tg.example.com');
+	assert.equal(normalizeBaseUrl('https://tg.example.com/'), 'https://tg.example.com');
+	assert.equal(normalizeBaseUrl('https://tg.example.com///'), 'https://tg.example.com');
+	assert.equal(normalizeBaseUrl('  https://tg.example.com/  '), 'https://tg.example.com');
+	assert.equal(normalizeBaseUrl('https://tg.example.com/proxy/'), 'https://tg.example.com/proxy');
+});
+
+test('trigger targets the custom base URL from the credential', async () => {
+	const node = new TelegramPollingTrigger();
+
+	let requestCalls = 0;
+	let sawUri: string | null = null;
+
+	const fakeThis = {
+		getCredentials: async () => ({
+			accessToken: 'TOKEN',
+			baseUrl: 'https://tg-proxy.example.com/',
+		}),
+		getNodeParameter: (name: string) => {
+			switch (name) {
+				case 'limit':
+					return 50;
+				case 'timeout':
+					return 0;
+				case 'updates':
+					return ['*'];
+				case 'restrictChatIds':
+					return '';
+				case 'restrictUserIds':
+					return '';
+				default:
+					throw new Error(`Unexpected parameter: ${name}`);
+			}
+		},
+		helpers: {
+			request: async (options: { uri: string; signal: AbortSignal }) => {
+				requestCalls++;
+				sawUri = options.uri;
+
+				if (requestCalls === 1) {
+					return okResponse([]);
+				}
+
+				return await new Promise((_resolve, reject) => {
+					rejectOnAbort(options.signal, reject, { response: { status: 409 } });
+				});
+			},
+		},
+		emit: () => undefined,
+	} as unknown as ITriggerFunctions;
+
+	const { closeFunction } = await node.trigger.call(fakeThis);
+	if (!closeFunction) {
+		throw new Error('Expected closeFunction to be defined');
+	}
+	await closeFunction();
+
+	assert.equal(sawUri, 'https://tg-proxy.example.com/botTOKEN/getUpdates');
 	await new Promise((resolve) => setImmediate(resolve));
 });

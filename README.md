@@ -1,16 +1,18 @@
 <div align="center">
   <img src="nodes/telegram.svg" alt="Telegram" width="96" height="96" />
 
-# @mentoster/n8n-nodes-telegram-polling
+# @vortland/n8n-nodes-telegram-polling
 
 Telegram trigger for n8n using the Bot API `getUpdates` long polling method (no webhooks).
 
-[![npm](https://img.shields.io/npm/v/@mentoster/n8n-nodes-telegram-polling)](https://www.npmjs.com/package/@mentoster/n8n-nodes-telegram-polling)
+[![npm](https://img.shields.io/npm/v/@vortland/n8n-nodes-telegram-polling)](https://www.npmjs.com/package/@vortland/n8n-nodes-telegram-polling)
 
 </div>
 
 > [!NOTE]
-> This is continuous work on a fork of `bergi9/n8n-nodes-telegram-polling`.
+> This is a fork of [`mentoster/n8n-nodes-telegram-polling`](https://github.com/mentoster/n8n-nodes-telegram-polling)
+> (itself a fork of `bergi9/n8n-nodes-telegram-polling`), adding support for a
+> custom Telegram Bot API base URL — see [Custom Bot API base URL](#custom-bot-api-base-url).
 
 ## What it does
 
@@ -36,7 +38,7 @@ Polling is a good fit when webhooks are hard or impossible to run reliably:
 ### Install via n8n UI (recommended)
 
 1. In n8n, open **Settings** > **Community nodes**.
-2. Choose **Install** and enter: `@mentoster/n8n-nodes-telegram-polling`.
+2. Choose **Install** and enter: `@vortland/n8n-nodes-telegram-polling`.
 3. Restart n8n if prompted.
 
 ### Install manually (custom nodes folder)
@@ -44,7 +46,7 @@ Polling is a good fit when webhooks are hard or impossible to run reliably:
 If you manage community nodes manually, install the package in your custom nodes directory (commonly `~/.n8n/custom`):
 
 ```bash
-npm install @mentoster/n8n-nodes-telegram-polling
+npm install @vortland/n8n-nodes-telegram-polling
 ```
 
 > [!TIP]
@@ -56,6 +58,20 @@ The trigger expects an n8n credential named `telegramApi` with an `accessToken` 
 
 1. Create a Telegram bot with [@BotFather](https://t.me/botfather) and copy the token.
 2. In n8n, create a credential for Telegram and paste the token.
+
+### Custom Bot API base URL
+
+The credential's **Base URL** field is honoured by this fork. Leave it empty to
+use `https://api.telegram.org`, or point it at a reverse proxy or a self-hosted
+[Bot API server](https://github.com/tdlib/telegram-bot-api) when Telegram is not
+reachable directly:
+
+```
+https://telegram-proxy.example.com
+```
+
+Trailing slashes are ignored. The node appends `/bot<token>/getUpdates` to
+whatever you configure, so the target must expose the standard Bot API layout.
 
 > [!WARNING]
 > This repository currently does not ship a credential type implementation under `credentials/` (see `credentials/AGENTS.md`).

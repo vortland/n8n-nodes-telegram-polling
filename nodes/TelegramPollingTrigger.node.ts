@@ -16,6 +16,23 @@ export type TelegramGetUpdatesFn = (args: {
 	signal: AbortSignal;
 }) => Promise<ApiResponse<Update[]>>;
 
+export const DEFAULT_TELEGRAM_BASE_URL = 'https://api.telegram.org';
+
+/**
+ * Resolves the Telegram Bot API base URL from the credential, falling back to
+ * the official endpoint. Trailing slashes are stripped so the path can be
+ * appended directly.
+ */
+export function normalizeBaseUrl(baseUrl: string | undefined): string {
+	const trimmed = (baseUrl ?? '').trim();
+
+	if (trimmed === '') {
+		return DEFAULT_TELEGRAM_BASE_URL;
+	}
+
+	return trimmed.replace(/\/+$/, '');
+}
+
 export function normalizeAllowedUpdates(allowedUpdates: string[]): string[] {
 	return allowedUpdates.includes('*') ? [] : allowedUpdates;
 }
@@ -347,6 +364,7 @@ export class TelegramPollingTrigger implements INodeType {
 
 	async trigger(this: ITriggerFunctions): Promise<ITriggerResponse> {
 		const credentials = await this.getCredentials('telegramApi');
+		const baseUrl = normalizeBaseUrl(credentials.baseUrl as string | undefined);
 
 		const limit = this.getNodeParameter('limit') as number;
 		const timeout = this.getNodeParameter('timeout') as number;
@@ -361,7 +379,7 @@ export class TelegramPollingTrigger implements INodeType {
 		const getUpdates: TelegramGetUpdatesFn = async ({ body, signal }) =>
 			(await this.helpers.request({
 				method: 'post',
-				uri: `https://api.telegram.org/bot${credentials.accessToken}/getUpdates`,
+				uri: `${baseUrl}/bot${credentials.accessToken}/getUpdates`,
 				body,
 				json: true,
 				timeout: 0,
